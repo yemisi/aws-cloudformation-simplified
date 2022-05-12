@@ -18,7 +18,7 @@ Parameters:
 Mappings:     
   MyRegionMap:
     us-east-2:
-      HVM64: ami-0cd3dfa4e37921605
+      HVM64: ami-0fa49cc9dc8d62c84
     us-west-1:
       HVM64: ami-0ec6517f6edbf8044
 

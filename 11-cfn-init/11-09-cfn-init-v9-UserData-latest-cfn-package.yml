@@ -81,7 +81,7 @@ Resources:
                 enabled: "true"
                 ensureRunning: "true"
     Properties:
-      ImageId: ami-0cd3dfa4e37921605
+      ImageId: ami-0fa49cc9dc8d62c84
       InstanceType: t2.micro
       KeyName: !Ref KeyName
       SecurityGroups:
