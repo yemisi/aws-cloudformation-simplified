@@ -18,7 +18,7 @@ Mappings:
   MyRegionMap:
     us-east-2:
       HVM64: ami-0fa49cc9dc8d62c84
-    us-west-1:
+    us-east-1:
       HVM64: ami-0022f774911c1d690
   MyEnvironmentMap:
     dev:
@@ -50,23 +50,22 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: 0.0.0.0/0
+          CidrIp: 97.108.231.162/32
 
 Outputs:
   MyInstanceId:
-    Description: My instance id
+    Description: My Instance ID
     Value: !Ref MyVMInstance
   MyDNSName:
     Description: My Public DNS Name
     Value: !GetAtt MyVMInstance.PublicDnsName
   MyInstanceAvailabilityZone:
-    Description: Instance Availability Zone
-    Value: !GetAtt MyVMInstance.AvailabilityZone    
-    Export: 
+    Description: Instance AZ
+    Value: !GetAtt MyVMInstance.AvailabilityZone
+    Export:
       Name: !Sub "${AWS::StackName}-InstanceAz"
   MyDevGlobalSecurityGroup:
     Description: My Dev SG
     Value: !Ref MyDevGlobalSecurityGroup
-    Export:
-      Name: MyDevSSHGlobalSG      
-
+    Export: 
+      Name: MyDevSSHGlobalSG
