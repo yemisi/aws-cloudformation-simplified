@@ -40,16 +40,7 @@ Resources:
         - instanceType
       KeyName: !Ref MyKeyName
       SecurityGroups: 
-        - !Ref MyDevGlobalSecurityGroup
-
-  MyDevGlobalSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: My Dev environment Global Security Group
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
-          CidrIp: 97.108.231.162/32
+        - !ImportValue MyDevSSHGlobalSG
+      AvailabilityZone: !ImportValue stack1-InstanceAz        
 
 

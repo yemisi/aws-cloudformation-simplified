@@ -26,6 +26,9 @@ Mappings:
     prod:
       instanceType: t2.small   
 
+Conditions:
+  CreateDevSecurityGroup: !Equals [!Ref MyEnvironmentName, dev]
+
 Resources:
   MyVMInstance:
     Type: AWS::EC2::Instance
@@ -39,17 +42,37 @@ Resources:
         - !Ref MyEnvironmentName
         - instanceType
       KeyName: !Ref MyKeyName
-      SecurityGroups: 
-        - !Ref MyDevGlobalSecurityGroup
+      SecurityGroups: !If [CreateDevSecurityGroup, [!Ref MyDevGlobalSecurityGroup], !Ref 'AWS::NoValue']
+        
 
   MyDevGlobalSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Condition: CreateDevSecurityGroup
     Properties:
       GroupDescription: My Dev environment Global Security Group
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: 97.108.231.162/32
+          CidrIp: 0.0.0.0/0
 
+Outputs:
+  MyInstanceId:
+    Description: My instance id
+    Value: !Ref MyVMInstance
+  MyDNSName:
+    Description: My Public DNS Name
+    Value: !GetAtt MyVMInstance.PublicDnsName
+  MyInstanceAvailabilityZone:
+    Description: Instance Availability Zone
+    Value: !GetAtt MyVMInstance.AvailabilityZone    
+    Export: 
+      Name: !Sub "${AWS::StackName}-InstanceAz"
+  MyDevGlobalSecurityGroup:
+    Description: My Dev SG
+    Value: !Ref MyDevGlobalSecurityGroup
+    Condition: CreateDevSecurityGroup
+    Export:
+      Name: !Join ["-", [!Ref 'AWS::StackName', MyDevSSHGlobalSG]]  
+      
 

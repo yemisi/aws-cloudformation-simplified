@@ -50,6 +50,16 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: 97.108.231.162/32
+          CidrIp: 0.0.0.0/0
 
+Outputs:
+  MyInstanceId:
+    Description: My instance id
+    Value: !Ref MyVMInstance
+  MyDNSName:
+    Description: My Public DNS Name
+    Value: !GetAtt MyVMInstance.PublicDnsName
+  MyInstanceAvailabilityZone:
+    Description: Instance Availability Zone
+    Value: !GetAtt MyVMInstance.AvailabilityZone    
 
