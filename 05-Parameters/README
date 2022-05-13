@@ -1,0 +1,8 @@
+We can have a max of 60 parametes in a cfn template
+Each parameter must be given an alphanumeric logical name (logical ID) which must be unique among all logical names in the template
+The parameter types must be a supported type
+Each parameter must be assigned a value at runtime for aws to successfully provision the stack or optionally specifuy a default
+parameters must be declared and referenced within the same template
+We caan reference parameters from the resources and outputs sections of the template
+
+Syntax

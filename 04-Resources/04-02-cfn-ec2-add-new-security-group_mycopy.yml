@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+    Basic Ec2 instance
+    
+Resources:
+    DevEC2Instance:
+      Type: AWS::EC2::Instance
+      Properties:           
+        ImageId: ami-0fa49cc9dc8d62c84
+        InstanceType: t2.micro
+        KeyName: cfn-key-1
+        SecurityGroups: [default, !Ref SSHSecurityGroup]
+    SSHSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "My new SSH security group" # Required
+        GroupName: "AllowSSH"
+        SecurityGroupIngress:
+        -  IpProtocol: tcp
+           FromPort: 22
+           ToPort: 22
+           CidrIp: "97.108.231.162/32"
+           Description: Allow ssh from my PC
+#        VpcId: "vpc-0aec8d994731db4ee"  Specifying vpcid returns security group id instead of name per aws doc for !Ref
+        
