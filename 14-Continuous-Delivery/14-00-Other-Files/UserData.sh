@@ -1,5 +1,5 @@
           #!/bin/bash
-          sudo yum update
+          sudo yum update -y
           sudo yum install ruby
           sudo yum install wget
           sudo yum -y erase java-1.7.0-openjdk.x86_64
