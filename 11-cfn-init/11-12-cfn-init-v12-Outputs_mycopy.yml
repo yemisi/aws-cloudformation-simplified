@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CFN Init Demo - Just create Metadata Template
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: cfn-key-1
+
+Resources: 
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: My SG with port 22, 8080 and 80 inbound
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '8080'          
+          ToPort: '8080'
+          CidrIp: 0.0.0.0/0
+
+  MyVMInstance:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M   
+    Metadata:
+      Comment: Deploy a simple tomcat Application
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              java-1.8.0-openjdk.x86_64: []
+              java-1.8.0-openjdk-devel: []
+          groups:
+            groupone: {}
+            grouptwo:
+              gid: "501"             
+          users:
+            user1:
+              groups:
+                - groupone
+                - grouptwo
+              uid: "501"                              
+              homeDir: "/tmp" 
+            tomcat: {}   
+          sources:
+            "/tmp": "https://s3.us-east-2.amazonaws.com/cfn-init-0189/cfn/demo1.zip"
+            "/usr/local": "https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz"
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                interval=3
+              mode: "000400"
+              owner: "root"
+              group: "root"
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.MyVMInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MyVMInstance --region ${AWS::Region}
+              mode: "000400"
+              owner: "root"
+              group: "root"
+            "/etc/systemd/system/tomcat.service":  
+              content: !Sub |
+                [Unit]
+                Description=Tomcat Server
+                After=syslog.target network.target
+
+                [Service]
+                Type=forking
+                User=tomcat
+                Group=tomcat
+
+                Environment=CATALINA_HOME=/usr/local/tomcat9
+                Environment=CATALINA_BASE=/usr/local/tomcat9
+                Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
+
+                ExecStart=/usr/local/tomcat9/bin/catalina.sh start
+                ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
+
+                RestartSec=12
+                Restart=always
+
+                [Install]
+                WantedBy=multi-user.target              
+              mode: "000644"
+              owner: "root"
+              group: "root"
+
+          commands: 
+            test1:
+               command: "mv /usr/local/apache-tomcat-9.0.62 /usr/local/tomcat9"
+               cwd: "/usr/local"        
+               ignoreErrors: "true"   
+            test2:
+               command: "chmod +x *"
+               cwd: "/usr/local/tomcat9/bin/"    
+               ignoreErrors: "true"                            
+            test3:
+               command: "chown -R tomcat:tomcat tomcat9"
+               cwd: "/usr/local" 
+               ignoreErrors: "true"
+            test4:
+               command: "systemctl start tomcat"
+               cwd: "/tmp"  
+               ignoreErrors: "true" 
+            test5:
+               command: "chmod 755 /tmp/demo.war"
+               cwd: "/tmp"  
+               ignoreErrors: "true"                               
+            test6:               
+              command: "rm -rf demo*"
+              cwd: "/usr/local/tomcat9/webapps"
+            test7:
+              command: "mv /tmp/demo.war /usr/local/tomcat9/webapps"                          
+              cwd: "/usr/local/"
+              ignoreErrors: "true"   
+          services:
+            sysvinit:
+              tomcat: 
+                enabled: "true"
+                ensureRunning: "true"
+    Properties:
+      ImageId: ami-0fa49cc9dc8d62c84
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref MySecurityGroup
+      UserData:
+        "Fn::Base64": 
+          !Sub |
+            #!/bin/bash -xe
+            # Get latest CloudFormation package - These packages change frequently
+            yum update -y aws-cfn-bootstrap
+            # Start cfn-init to Install all Metadata content (pacakges, sources, files, commands and services )
+            /opt/aws/bin/cfn-init -s ${AWS::StackId} -r MyVMInstance --region ${AWS::Region} || error_exit 'Failed to run cfn-init'
+            # Signal the status from cfn-init 
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource MyVMInstance --region ${AWS::Region}
+            # Start cfn-hup daemon so that it will keep listening to any changes to EC2 Instance Metadata. 
+            /opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'
+
+
+Outputs:
+  AppURL:
+    Description: Application URL to access
+    Value: !Sub 'http://${MyVMInstance.PublicDnsName}:8080/demo/hello' 
+  SSHCommand:
+    Description: Command to access via ssh
+    Value: !Sub 'ssh -i "cfn-key-1.pem" ec2-user@${MyVMInstance.PublicDnsName}' 
+
+
+

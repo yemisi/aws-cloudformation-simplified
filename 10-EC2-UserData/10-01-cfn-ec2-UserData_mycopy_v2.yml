@@ -76,57 +76,28 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone
       SecurityGroups:
         - !Ref MySecurityGroup
-      UserData:
-        Fn::Base64: |
-            #!/bin/bash
-            sudo yum update -y
-            sudo amazon-linux-extras install epel -y
-            sudo yum -y erase java-1.7.0-openjdk.x86_64
-            sudo amazon-linux-extras install java-openjdk11 -y
-            wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz
-            tar xvf apache-tomcat-9.0.62.tar.gz 
-            sudo useradd -r tomcat 2>/dev/null
-            mv apache-tomcat-9.0.62 tomcat9
-            sudo mv tomcat9/ /usr/local/
-            chown -R tomcat:tomcat /usr/local/tomcat9
-            sudo chmod +x /usr/local/tomcat9/bin/*
-            sudo tee /etc/systemd/system/tomcat.service<<EOF
-            [Unit]
-            Description=Tomcat Server
-            After=syslog.target network.target
-
-            [Service]
-            Type=forking
-            User=tomcat
-            Group=tomcat
-
-            Environment=CATALINA_HOME=/usr/local/tomcat9
-            Environment=CATALINA_BASE=/usr/local/tomcat9
-            Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
-
-            ExecStart=/usr/local/tomcat9/bin/catalina.sh start
-            ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
-
-            RestartSec=12
-            Restart=always
-
-            [Install]
-            WantedBy=multi-user.target
-            EOF
-            sudo systemctl daemon-reload 
-            sudo systemctl start tomcat
-            sudo mkdir -p /usr/local/tomcat9/webapps/ROOT
-            sudo echo "Cloud Formation Tomcat9" >/usr/local/tomcat9/webapps/ROOT/index.html            
+      UserData: 
+        Fn::Base64: |  
+          #!/bin/bash
+          sudo yum update -y
+          sudo yum -y erase java-1.7.0-openjdk.x86_64
+          sudo yum -y install java-1.8.0-openjdk.x86_64
+          sudo yum -y install java-1.8.0-openjdk-devel
+          sudo amazon-linux-extras install tomcat8.5
+          service tomcat8 start
+          mkdir /usr/share/tomcat8/webapps/ROOT
+          touch /usr/share/tomcat8/webapps/ROOT/index.html
+          echo "Cloud Formation Tomcat8" > /usr/share/tomcat8/webapps/ROOT/index.html
+      
     
   MyProdEIP:
     Type: AWS::EC2::EIP
     Condition: CreateEIPForProd
     Properties: 
       InstanceId: !Ref MyVMInstance
-          
 
+      
 Outputs:
   AppURL:
     Description: Tomcat App Access URL
-    Value: !Sub 'http://${MyVMInstance.PublicDnsName}:8080/index.html'
-
+    Value: !Sub 'http://${MyVMInstance.PublicDnsName}:8080/index.html'          
