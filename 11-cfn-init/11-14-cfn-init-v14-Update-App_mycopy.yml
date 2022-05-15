@@ -4,7 +4,6 @@ Description: CFN Init Demo - Just create Metadata Template
 Parameters:
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
-    
 
 Resources: 
   MySecurityGroup:
@@ -47,7 +46,7 @@ Resources:
               homeDir: "/tmp" 
             tomcat: {}   
           sources:
-            "/tmp": "https://s3.us-east-2.amazonaws.com/cfn-init-0189/cfn/demo1.zip"
+            "/tmp": "https://s3.us-east-2.amazonaws.com/cfn-init-0189/cfn/demo2.zip"
             "/usr/local": "https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz"
           files:
             "/etc/cfn/cfn-hup.conf":

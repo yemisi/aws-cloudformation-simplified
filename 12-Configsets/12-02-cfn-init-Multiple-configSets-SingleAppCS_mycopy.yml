@@ -4,7 +4,6 @@ Description: CFN Init Demo - Just create Metadata Template
 Parameters:
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
-    
 
 Resources: 
   MySecurityGroup:
@@ -29,7 +28,15 @@ Resources:
     Metadata:
       Comment: Deploy a simple tomcat Application
       AWS::CloudFormation::Init:
-        config:
+        configSets:
+          SingleAppCS:
+            - App1                
+          DualAppCS:
+            - ConfigSet: "SingleAppCS"  
+            - App2
+          default:
+            - ConfigSet: "DualAppCS"     
+        App1:
           packages:
             yum:
               java-1.8.0-openjdk.x86_64: []
@@ -47,7 +54,7 @@ Resources:
               homeDir: "/tmp" 
             tomcat: {}   
           sources:
-            "/tmp": "https://s3.us-east-2.amazonaws.com/cfn-init-0189/cfn/demo1.zip"
+            "/tmp": "https://s3.us-east-2.amazonaws.com/cfn-init-0189/cfn/demo2.zip"
             "/usr/local": "https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz"
           files:
             "/etc/cfn/cfn-hup.conf":
@@ -128,6 +135,17 @@ Resources:
               tomcat: 
                 enabled: "true"
                 ensureRunning: "true"
+        App2:
+          commands:
+            test1:
+              command: "mkdir ROOT"                          
+              cwd: "/usr/local/tomcat9/webapps"
+              ignoreErrors: "true"                
+            test2:
+              command: "echo \"$INDEXCONTENT\" > index.html"              
+              env: 
+                INDEXCONTENT: "Root Page of tomcat from App2"
+              cwd: "/usr/local/tomcat9/webapps/ROOT"     
     Properties:
       ImageId: ami-0fa49cc9dc8d62c84
       InstanceType: t2.micro
@@ -141,7 +159,7 @@ Resources:
             # Get latest CloudFormation package - These packages change frequently
             yum update -y aws-cfn-bootstrap
             # Start cfn-init to Install all Metadata content (pacakges, sources, files, commands and services )
-            /opt/aws/bin/cfn-init -s ${AWS::StackId} -r MyVMInstance --region ${AWS::Region} || error_exit 'Failed to run cfn-init'
+            /opt/aws/bin/cfn-init -s ${AWS::StackId} -r MyVMInstance  --configsets SingleAppCS --region ${AWS::Region} || error_exit 'Failed to run cfn-init'
             # Signal the status from cfn-init 
             /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource MyVMInstance --region ${AWS::Region}
             # Start cfn-hup daemon so that it will keep listening to any changes to EC2 Instance Metadata. 
@@ -149,12 +167,12 @@ Resources:
 
 
 Outputs:
-  AppURL:
-    Description: Application URL to access
+  App1URL:
+    Description: App1 URL to access
     Value: !Sub 'http://${MyVMInstance.PublicDnsName}:8080/demo/hello' 
+  App2URL:
+    Description: App2 URL to access
+    Value: !Sub 'http://${MyVMInstance.PublicDnsName}:8080/index.html'     
   SSHCommand:
     Description: Command to access via ssh
     Value: !Sub 'ssh -i "cfn-key-1.pem" ec2-user@${MyVMInstance.PublicDnsName}' 
-
-
-

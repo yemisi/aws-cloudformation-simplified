@@ -79,18 +79,18 @@ Resources:
       UserData:
         Fn::Base64: |
             #!/bin/bash
-            sudo yum update -y
-            sudo amazon-linux-extras install epel -y
-            sudo yum -y erase java-1.7.0-openjdk.x86_64
-            sudo amazon-linux-extras install java-openjdk11 -y
+            yum update -y
+            amazon-linux-extras install epel -y
+            yum -y erase java-1.7.0-openjdk.x86_64
+            amazon-linux-extras install java-openjdk11 -y
             wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz
             tar xvf apache-tomcat-9.0.62.tar.gz 
-            sudo useradd -r tomcat 2>/dev/null
+            useradd -r tomcat 2>/dev/null
             mv apache-tomcat-9.0.62 tomcat9
-            sudo mv tomcat9/ /usr/local/
+            mv tomcat9/ /usr/local/
             chown -R tomcat:tomcat /usr/local/tomcat9
-            sudo chmod +x /usr/local/tomcat9/bin/*
-            sudo tee /etc/systemd/system/tomcat.service<<EOF
+            chmod +x /usr/local/tomcat9/bin/*
+            tee /etc/systemd/system/tomcat.service<<EOF
             [Unit]
             Description=Tomcat Server
             After=syslog.target network.target
@@ -113,10 +113,10 @@ Resources:
             [Install]
             WantedBy=multi-user.target
             EOF
-            sudo systemctl daemon-reload 
-            sudo systemctl start tomcat
-            sudo mkdir -p /usr/local/tomcat9/webapps/ROOT
-            sudo echo "Cloud Formation Tomcat9" >/usr/local/tomcat9/webapps/ROOT/index.html            
+            systemctl daemon-reload 
+            systemctl start tomcat
+            mkdir -p /usr/local/tomcat9/webapps/ROOT
+            echo "Cloud Formation Tomcat9" >/usr/local/tomcat9/webapps/ROOT/index.html            
     
   MyProdEIP:
     Type: AWS::EC2::EIP

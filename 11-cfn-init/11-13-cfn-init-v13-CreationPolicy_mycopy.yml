@@ -4,7 +4,6 @@ Description: CFN Init Demo - Just create Metadata Template
 Parameters:
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
-    
 
 Resources: 
   MySecurityGroup:
