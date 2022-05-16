@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  EC2 Instance with Instance profile role to access S3 buckets
+  
+Parameters:
+  KeyName:
+    Description: Key name to SSH to VM's. 
+    Type: AWS::EC2::KeyPair::KeyName  
+  
+Resources:
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Allow_HTTP_SSH
+      GroupDescription: Allow port 22, 8080 and 80 inbound
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '8080'
+          ToPort: '8080'
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value:  Allow_HTTP_SSH
+
+  MyCICDEC2InstanceProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: MyCICDEC2InstanceProfileRole
+      Description: CICD EC2 Instance Profile Role
+      Path: /
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: MyCICDEC2InstanceProfilePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:Get*'
+                  - 's3:List*'
+                Resource: '*'
+
+  MyInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: EC2toS3InstanceProfile
+      Path: /
+      Roles: 
+        - !Ref MyCICDEC2InstanceProfileRole
+
+  MyStageVMInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref KeyName
+      ImageId: ami-0fa49cc9dc8d62c84
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref MyInstanceProfile
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+      UserData: !Base64 |
+            #!/bin/bash
+            yum update -y
+            yum -y erase java-1.7.0-openjdk.x86_64
+            yum -y install java-1.8.0-openjdk.x86_64
+            yum -y install java-1.8.0-openjdk-devel
+            yum install ruby -y
+            wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz
+            tar xvf apache-tomcat-9.0.62.tar.gz 
+            useradd -r tomcat 2>/dev/null
+            mv apache-tomcat-9.0.62 tomcat9
+            mv tomcat9/ /usr/local/
+            chown -R tomcat:tomcat /usr/local/tomcat9
+            chmod +x /usr/local/tomcat9/bin/*
+            tee /etc/systemd/system/tomcat.service<<EOF
+            [Unit]
+            Description=Tomcat Server
+            After=syslog.target network.target
+
+            [Service]
+            Type=forking
+            User=tomcat
+            Group=tomcat
+
+            Environment=CATALINA_HOME=/usr/local/tomcat9
+            Environment=CATALINA_BASE=/usr/local/tomcat9
+            Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
+
+            ExecStart=/usr/local/tomcat9/bin/catalina.sh start
+            ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
+
+            RestartSec=12
+            Restart=always
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            systemctl daemon-reload ; systemctl start tomcat
+            cd /home/ec2-user
+            wget https://aws-codedeploy-us-east-2.s3.amazonaws.com/latest/install
+            chmod +x ./install
+            sudo ./install auto     
+      Tags:
+        - Key: Name
+          Value: dev
+        - Key: Environment
+          Value: Staging         
+  
+  MyProdVMInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref KeyName
+      ImageId: ami-0fa49cc9dc8d62c84
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref MyInstanceProfile
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+      UserData: !Base64 |
+            #!/bin/bash
+            yum update -y
+            amazon-linux-extras install epel -y 
+            yum -y erase java-1.7.0-openjdk.x86_64
+            amazon-linux-extras install java-openjdk11 -y
+            yum install ruby -y; yum install wget -y
+            wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz
+            tar xvf apache-tomcat-9.0.62.tar.gz 
+            useradd -r tomcat 2>/dev/null
+            mv apache-tomcat-9.0.62 tomcat9
+            mv tomcat9/ /usr/local/
+            chown -R tomcat:tomcat /usr/local/tomcat9
+            chmod +x /usr/local/tomcat9/bin/*
+            tee /etc/systemd/system/tomcat.service<<EOF
+            [Unit]
+            Description=Tomcat Server
+            After=syslog.target network.target
+
+            [Service]
+            Type=forking
+            User=tomcat
+            Group=tomcat
+
+            Environment=CATALINA_HOME=/usr/local/tomcat9
+            Environment=CATALINA_BASE=/usr/local/tomcat9
+            Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
+
+            ExecStart=/usr/local/tomcat9/bin/catalina.sh start
+            ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
+
+            RestartSec=12
+            Restart=always
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            systemctl daemon-reload ; systemctl start tomcat
+            cd /home/ec2-user
+            wget https://aws-codedeploy-us-east-2.s3.amazonaws.com/latest/install
+            chmod +x ./install
+            sudo ./install auto     
+      Tags:
+        - Key: Name
+          Value: prod
+        - Key: Environment
+          Value: Production    
+
+Outputs:
+  StageAppURL:
+    Description: Staging Application Access URL
+    Value:  !Sub 'http://${MyStageVMInstance.PublicDnsName}:8080/ccdemo/hello'   
+
+  LogicalID:
+    Description: Prod Application Access URL
+    Value:  !Sub 'http://${MyProdVMInstance.PublicDnsName}:8080/ccdemo/hello'     
