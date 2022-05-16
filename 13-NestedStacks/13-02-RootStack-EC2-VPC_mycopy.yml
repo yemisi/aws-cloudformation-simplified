@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Root Stack Template
+
+Parameters:
+  KeyName:
+    Description: Key name to SSH to VM's. 
+    Type: AWS::EC2::KeyPair::KeyName
+
+  VpcBlock:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: VPC CIDR Range
+  
+  Subnet01Block:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: Cidrblock for subnet01 within the VPC
+
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        VpcBlock: !Ref VpcBlock   #key must correspond to parameter logical ID in nested template. You can use a different parameter logical name in this root stack and reference accordingly
+        Subnet01Block: !Ref Subnet01Block
+      TemplateURL: https://nestedbucket2022.s3.us-east-2.amazonaws.com/nestedstacks/13-01-NestedStack-VPC_mycopy.yml # Required
+      TimeoutInMinutes: 5
+
+  MyVMInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref KeyName
+      ImageId: ami-0fa49cc9dc8d62c84
+      InstanceType: t2.micro
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !GetAtt VPCStack.Outputs.Subnet01Id
+      UserData: !Base64 |
+            #!/bin/bash
+            yum update -y
+            amazon-linux-extras install epel -y
+            yum -y erase java-1.7.0-openjdk.x86_64
+            amazon-linux-extras install java-openjdk11 -y
+            wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.62/bin/apache-tomcat-9.0.62.tar.gz
+            tar xvf apache-tomcat-9.0.62.tar.gz 
+            useradd -r tomcat 2>/dev/null
+            mv apache-tomcat-9.0.62 tomcat9
+            mv tomcat9/ /usr/local/
+            chown -R tomcat:tomcat /usr/local/tomcat9
+            chmod +x /usr/local/tomcat9/bin/*
+            tee /etc/systemd/system/tomcat.service<<EOF
+            [Unit]
+            Description=Tomcat Server
+            After=syslog.target network.target
+
+            [Service]
+            Type=forking
+            User=tomcat
+            Group=tomcat
+
+            Environment=CATALINA_HOME=/usr/local/tomcat9
+            Environment=CATALINA_BASE=/usr/local/tomcat9
+            Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
+
+            ExecStart=/usr/local/tomcat9/bin/catalina.sh start
+            ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
+
+            RestartSec=12
+            Restart=always
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            systemctl daemon-reload 
+            systemctl start tomcat
+            mkdir -p /usr/local/tomcat9/webapps/ROOT
+            echo "Cloud Formation Tomcat9" >/usr/local/tomcat9/webapps/ROOT/index.html  
+
+Outputs:
+  AppURL:
+    Description: Tomcat App Access URL
+    Value: !Sub 'http://${MyVMInstance.PublicDnsName}:8080/index.html'
